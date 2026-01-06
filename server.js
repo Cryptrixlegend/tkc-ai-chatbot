@@ -1,32 +1,41 @@
-import express from "express";
-import fetch from "node-fetch";
-import dotenv from "dotenv";
-
-dotenv.config();
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const { OpenAI } = require('openai');
+require('dotenv').config();
 
 const app = express();
-app.use(express.json());
-app.use(express.static("public"));
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static('public'));
 
-app.post("/chat", async (req, res) => {
-  const userMessage = req.body.message;
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: userMessage }]
-    })
-  });
-
-  const data = await response.json();
-  res.json({ reply: data.choices[0].message.content });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
 });
 
-app.listen(3000, () => {
-  console.log("TKC AI running on http://localhost:3000");
+// Test route
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
 });
+
+// Chat route
+app.post('/ask', async (req, res) => {
+  try {
+    const { question } = req.body;
+    console.log('Received question:', question);
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: question }]
+    });
+
+    const answer = response.choices[0].message.content;
+    res.json({ answer });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ answer: "Server error!" });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`TKC running on http://localhost:${PORT}`));
